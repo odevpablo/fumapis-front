@@ -1,0 +1,494 @@
+import React, { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { EleitoresContext } from '../../context/EleitoresContext';
+
+const Cadastrar = () => {
+  const [formData, setFormData] = useState({
+    nomeCompleto: "",
+    cpf: "",
+    nomeConjuge: "",
+    cpfConjuge: "",
+    bairro: "",
+    telefone: "",
+    email: "",
+    enderecoCompleto: "",
+    programaSocial: "",
+    statusCadastro: "Ativo"
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const { adicionarEleitor } = useContext(EleitoresContext);
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Se for um campo de CPF, usa o formatador específico
+    if (name === 'cpf' || name === 'cpfConjuge') {
+      handleCPFChange(e);
+      return;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const formatCPF = (cpf) => {
+    return cpf
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  };
+
+  const handleCPFChange = (e) => {
+    const { name, value } = e.target;
+    const cpfLimpo = value.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos
+    if (cpfLimpo.length > 11) return;
+    
+    // Formata o CPF
+    const cpfFormatado = formatCPF(cpfLimpo);
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: cpfFormatado,
+    }));
+  };
+
+  const validateCPF = (cpf) => {
+    cpf = cpf.replace(/\D/g, '');
+    if (cpf.length !== 11) return false;
+    
+    // Verifica se todos os dígitos são iguais (ex: 111.111.111-11)
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
+    
+    // Validação do primeiro dígito verificador
+    let soma = 0;
+    for (let i = 0; i < 9; i++) {
+      soma += parseInt(cpf.charAt(i)) * (10 - i);
+    }
+    let resto = 11 - (soma % 11);
+    const digito1 = resto === 10 || resto === 11 ? 0 : resto;
+    
+    if (digito1 !== parseInt(cpf.charAt(9))) return false;
+    
+    // Validação do segundo dígito verificador
+    soma = 0;
+    for (let i = 0; i < 10; i++) {
+      soma += parseInt(cpf.charAt(i)) * (11 - i);
+    }
+    resto = 11 - (soma % 11);
+    const digito2 = resto === 10 || resto === 11 ? 0 : resto;
+    
+    return digito2 === parseInt(cpf.charAt(10));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      // Validação básica
+      if (!formData.nomeCompleto || !formData.cpf || !formData.bairro) {
+        throw new Error('Por favor, preencha os campos obrigatórios: Nome Completo, CPF e Bairro');
+      }
+      
+      // Validação de CPF
+      const cpfLimpo = formData.cpf.replace(/\D/g, '');
+      if (cpfLimpo.length !== 11) {
+        throw new Error('CPF inválido. Deve conter 11 dígitos.');
+      }
+      
+      if (!validateCPF(formData.cpf)) {
+        throw new Error('CPF inválido. Verifique o número digitado.');
+      }
+      
+      // Validação de CPF do cônjuge se preenchido
+      if (formData.cpfConjuge) {
+        const cpfConjugeLimpo = formData.cpfConjuge.replace(/\D/g, '');
+        if (cpfConjugeLimpo.length !== 11) {
+          throw new Error('CPF do cônjuge inválido. Deve conter 11 dígitos.');
+        }
+        
+        if (!validateCPF(formData.cpfConjuge)) {
+          throw new Error('CPF do cônjuge inválido. Verifique o número digitado.');
+        }
+      }
+      
+      // Obter token de autenticação
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
+      }
+      
+      // Preparar os dados no formato esperado pela API
+      const dadosParaEnviar = {
+        nome_completo: formData.nomeCompleto,
+        cpf: cpfLimpo,
+        nome_conjuge: formData.nomeConjuge || null,
+        cpf_conjuge: formData.cpfConjuge ? formData.cpfConjuge.replace(/\D/g, '') : null,
+        bairro: formData.bairro,
+        telefone: formData.telefone || null,
+        email: formData.email || null,
+        endereco_completo: formData.enderecoCompleto || null,
+        programa_social: formData.programaSocial || null,
+        status_cadastro: formData.statusCadastro || 'Ativo'
+      };
+      
+      const response = await fetch('http://127.0.0.1:8000/cidadaos/', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(dadosParaEnviar)
+      });
+      
+      if (!response.ok) {
+        let errorMessage = 'Erro ao cadastrar cidadão';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+          
+          // Tratar erros específicos da API
+          if (errorData.cpf) {
+            errorMessage = `CPF: ${errorData.cpf.join(' ')}`;
+          }
+          if (errorData.email) {
+            errorMessage = `E-mail: ${errorData.email.join(' ')}`;
+          }
+        } catch (e) {
+          console.error('Erro ao processar resposta de erro:', e);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const novoCidadao = await response.json();
+      
+      // Adicionar o novo cidadão ao contexto global (se necessário)
+      if (adicionarEleitor) {
+        adicionarEleitor(novoCidadao);
+      }
+      
+      // Limpar o formulário
+      setFormData({
+        nomeCompleto: "",
+        cpf: "",
+        nomeConjuge: "",
+        cpfConjuge: "",
+        bairro: "",
+        telefone: "",
+        email: "",
+        enderecoCompleto: "",
+        programaSocial: "",
+        statusCadastro: "Ativo"
+      });
+      
+      // Redirecionar para a página de consulta
+      setSubmitError('');
+      alert('Cidadão cadastrado com sucesso!');
+      navigate('/consultar');
+      
+    } catch (error) {
+      console.error('Erro ao cadastrar cidadão:', error);
+      setSubmitError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const bairros = [
+    "Centro", "Eldorado", "Piraporinha", "Taboão", "Serra", "Campanário",
+    "Inamar", "Santo Antônio", "Conceição", "Casa Grande", "Assunção"
+  ];
+
+  const programasSociais = [
+    "Bolsa Família", "BPC", "CadÚnico", "Nenhum", "Outros"
+  ];
+
+  const statusCadastro = [
+    "Pendente", "Elegível"
+  ];
+
+  return (
+    <div className="container" style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
+      <h2 style={{ color: "#1a237e", marginBottom: "30px", textAlign: "center" }}>Cadastro de Eleitor</h2>
+      
+      <form onSubmit={handleSubmit} style={{ backgroundColor: "#f8f9fa", padding: "25px", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          {/* Coluna 1 */}
+          <div>
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Nome Completo *</label>
+              <input
+                type="text"
+                name="nomeCompleto"
+                value={formData.nomeCompleto}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="Digite o nome completo"
+              />
+
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>CPF *</label>
+              <input
+                type="text"
+                name="cpf"
+                value={formData.cpf}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="000.000.000-00"
+              />
+
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Nome do Cônjuge</label>
+              <input
+                type="text"
+                name="nomeConjuge"
+                value={formData.nomeConjuge}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="Digite o nome do cônjuge"
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>CPF do Cônjuge</label>
+              <input
+                type="text"
+                name="cpfConjuge"
+                value={formData.cpfConjuge}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="000.000.000-00"
+              />
+            </div>
+          </div>
+          <div>
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Bairro *</label>
+              <select
+                name="bairro"
+                value={formData.bairro}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da",
+                  backgroundColor: "white"
+                }}
+              >
+                <option value="">Selecione um bairro</option>
+                {bairros.map((bairro) => (
+                  <option key={bairro} value={bairro}>
+                    {bairro}
+                  </option>
+                ))}
+              </select>
+
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Telefone *</label>
+              <input
+                type="tel"
+                name="telefone"
+                value={formData.telefone}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="(00) 00000-0000"
+              />
+
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>E-mail *</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="seu@email.com"
+              />
+
+            </div>
+          </div>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: "20px" }}>
+          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Endereço Completo *</label>
+          <input
+            type="text"
+            name="enderecoCompleto"
+            value={formData.enderecoCompleto}
+            onChange={handleChange}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: "4px",
+              border: "1px solid #ced4da"
+            }}
+            placeholder="Rua, número, complemento"
+          />
+
+        </div>
+
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+          <div className="form-group">
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Programa Social</label>
+            <select
+              name="programaSocial"
+              value={formData.programaSocial}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                padding: "10px",
+                borderRadius: "4px",
+                border: "1px solid #ced4da",
+                backgroundColor: "white"
+              }}
+            >
+              <option value="">Selecione um programa</option>
+              {programasSociais.map((programa) => (
+                <option key={programa} value={programa}>
+                  {programa}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Status do Cadastro *</label>
+            <select
+              name="statusCadastro"
+              value={formData.statusCadastro}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                padding: "10px",
+                borderRadius: "4px",
+                border: "1px solid #ced4da",
+                backgroundColor: "white"
+              }}
+              disabled={isSubmitting}
+            >
+              <option value="">Selecione o status</option>
+              {statusCadastro.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "30px" }}>
+          <button
+            type="button"
+            style={{
+              padding: "10px 20px",
+              border: "1px solid #6c757d",
+              borderRadius: "4px",
+              backgroundColor: "#fff",
+              color: "#6c757d",
+              cursor: "pointer"
+            }}
+            onClick={() => {
+              // Limpar o formulário
+              setFormData({
+                nomeCompleto: "",
+                cpf: "",
+                nomeConjuge: "",
+                cpfConjuge: "",
+                bairro: "",
+                telefone: "",
+                email: "",
+                enderecoCompleto: "",
+                programaSocial: "",
+                statusCadastro: "Pendente"
+              });
+              setSubmitError('');
+            }}
+            disabled={isSubmitting}
+          >
+            Limpar
+          </button>
+          <button
+            type="submit"
+            style={{
+              padding: "10px 30px",
+              border: "none",
+              borderRadius: "4px",
+              backgroundColor: isSubmitting ? "#6c757d" : "#1a237e",
+              color: "white",
+              cursor: isSubmitting ? "not-allowed" : "pointer",
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+        {submitError && (
+          <div style={{ 
+            color: '#dc3545', 
+            backgroundColor: '#f8d7da',
+            border: '1px solid #f5c6cb',
+            borderRadius: '4px',
+            padding: '10px',
+            marginTop: '20px',
+            textAlign: 'center'
+          }}>
+            {submitError}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+};
+
+export default Cadastrar;
