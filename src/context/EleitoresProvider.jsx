@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { EleitoresContext } from './EleitoresContext';
-import config from '../config';
+
+// URL da API
+const API_URL = 'http://api.fumapis.org';
 
 const EleitoresProvider = ({ children }) => {
   const [eleitores, setEleitores] = useState([]);
@@ -90,7 +92,7 @@ const EleitoresProvider = ({ children }) => {
       
       let response;
       try {
-        response = await fetch(`${config.apiUrl}/cidadaos`, {
+        response = await fetch(`${API_URL}/cidadaos`, {
           headers: {
             'Authorization': `Token ${token}`,
             'Content-Type': 'application/json'
@@ -200,7 +202,7 @@ const EleitoresProvider = ({ children }) => {
         ...outrosFiltros
       });
       
-      const response = await fetch(`http://localhost:8000/cidadaos?${params.toString()}`, {
+      const response = await fetch(`${API_URL}/cidadaos?${params.toString()}`, {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
