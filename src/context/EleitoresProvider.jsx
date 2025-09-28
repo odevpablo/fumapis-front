@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { EleitoresContext } from './EleitoresContext';
+import config from '../config';
 
 const EleitoresProvider = ({ children }) => {
   const [eleitores, setEleitores] = useState([]);
@@ -89,7 +90,7 @@ const EleitoresProvider = ({ children }) => {
       
       let response;
       try {
-        response = await fetch('http://localhost:8000/cidadaos', {
+        response = await fetch(`${config.apiUrl}/cidadaos`, {
           headers: {
             'Authorization': `Token ${token}`,
             'Content-Type': 'application/json'
