@@ -1,16 +1,13 @@
 import React, { useState } from "react";
 
 const Importar = () => {
-  console.log('Componente Importar foi renderizado');
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
 
   const handleFileChange = (e) => {
-    console.log('Arquivo selecionado:', e.target.files);
     const selectedFile = e.target.files[0];
-    console.log('Arquivo processado:', selectedFile);
     if (selectedFile && (selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || 
                          selectedFile.name.endsWith('.xlsx'))) {
       setFile(selectedFile);
@@ -25,7 +22,6 @@ const Importar = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Tentando enviar arquivo...');
     
     // Verifica se há um arquivo selecionado
     if (!file) {
@@ -50,9 +46,8 @@ const Importar = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      console.log('Iniciando upload do arquivo:', file.name);
       
-      const response = await fetch("http://localhost:8000/upload-xlsx", {
+      const response = await fetch("http://api.fumapis.org/upload-xlsx", {
         method: "POST",
         headers: {
           "accept": "application/json"
@@ -63,20 +58,17 @@ const Importar = () => {
         credentials: 'include'
       });
 
-      console.log('Resposta recebida, status:', response.status);
       
       // Tenta fazer o parse da resposta como JSON
       let data;
       try {
         const responseText = await response.text();
         data = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        console.error('Erro ao fazer parse da resposta:', parseError);
+      } catch {
         throw new Error('Resposta inválida do servidor');
       }
       
       if (!response.ok) {
-        console.error('Erro na resposta:', data);
         throw new Error(
           data.detail || 
           data.message || 
@@ -84,7 +76,6 @@ const Importar = () => {
         );
       }
 
-      console.log('Upload concluído com sucesso:', data);
       setMessage("Arquivo XLSX enviado e processado com sucesso!");
       setIsError(false);
       
@@ -94,7 +85,6 @@ const Importar = () => {
       if (fileInput) fileInput.value = "";
       
     } catch (error) {
-      console.error("Erro no upload:", error);
       setMessage(`Erro: ${error.message || 'Falha ao processar o arquivo XLSX'}`);
       setIsError(true);
     } finally {
@@ -102,10 +92,8 @@ const Importar = () => {
     }
   };
 
-  console.log('Renderizando interface do Importar');
   return (
     <div style={{ padding: 32, maxWidth: 600, margin: '0 auto' }}>
-      {console.log('Estado atual:', { file, isUploading, message, isError })}
       <h2 style={{ color: '#1a237e', marginBottom: 24 }}>Importar Dados XLSX</h2>
       
       <div style={{

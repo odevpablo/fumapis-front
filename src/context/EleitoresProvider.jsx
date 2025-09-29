@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { EleitoresContext } from './EleitoresContext';
 
 // URL da API
-const API_URL = 'http://api.fumapis.org';
+const API_URL = 'https://api.fumapis.org';
 
 const EleitoresProvider = ({ children }) => {
   const [eleitores, setEleitores] = useState([]);
@@ -21,7 +21,6 @@ const EleitoresProvider = ({ children }) => {
 
   const processarBairros = useCallback((dados) => {
     if (!Array.isArray(dados)) {
-      console.error('Dados inválidos para processar bairros:', dados);
       return { bairrosFormatados: [], naoMapeados: [] };
     }
     
@@ -53,7 +52,6 @@ const EleitoresProvider = ({ children }) => {
 
   const atualizarEstatisticas = useCallback((dados) => {
     if (!Array.isArray(dados)) {
-      console.error('Dados inválidos para atualizar estatísticas:', dados);
       return {
         total: 0,
         elegiveis: 0,
@@ -84,35 +82,25 @@ const EleitoresProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        console.warn('Nenhum token de autenticação encontrado');
         return [];
       }
       
-      console.log('Buscando dados da API...');
-      
-      let response;
-      try {
-        response = await fetch(`${API_URL}/cidadaos`, {
-          headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      } catch (error) {
-        console.error('Erro de conexão com a API:', error);
+      const response = await fetch(`${API_URL}/cidadaos`, {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }).catch(() => {
         throw new Error('Não foi possível conectar ao servidor. Verifique se o servidor da API está em execução.');
-      }
+      });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Erro na resposta da API:', response.status, errorData);
         throw new Error(errorData.message || 'Erro ao buscar os dados');
       }
       
       const data = await response.json();
       const resultados = Array.isArray(data) ? data : [];
-      
-      console.log(`Dados carregados: ${resultados.length} registros`);
       
       // Processa os dados em uma única etapa
       const estatisticas = atualizarEstatisticas(resultados);
@@ -127,7 +115,6 @@ const EleitoresProvider = ({ children }) => {
       
       return resultados;
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
       // Define estados vazios em caso de erro
       setEleitores([]);
       setStats({
@@ -139,12 +126,6 @@ const EleitoresProvider = ({ children }) => {
       });
       setBairrosData([]);
       setBairrosNaoMapeados([]);
-      
-      // Mostra uma mensagem de erro mais amigável
-      if (error.message.includes('não foi possível conectar')) {
-        // Aqui você pode adicionar lógica para mostrar um toast ou mensagem de erro na UI
-        console.error('Erro de conexão:', error.message);
-      }
       
       throw error;
     } finally {
@@ -189,47 +170,39 @@ const EleitoresProvider = ({ children }) => {
   }, [atualizarEstatisticas, processarBairros]);
   
   const buscarCidadaos = useCallback(async (filtros = {}) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      const { skip = 0, limit = 100, ...outrosFiltros } = filtros;
-      const params = new URLSearchParams({
-        skip,
-        limit,
-        ...outrosFiltros
-      });
-      
-      const response = await fetch(`${API_URL}/cidadaos?${params.toString()}`, {
-        headers: {
-          'Authorization': `Token ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Erro ao buscar cidadãos');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Erro ao buscar cidadãos:', error);
-      throw error;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Usuário não autenticado');
     }
+
+    const { skip = 0, limit = 100, ...outrosFiltros } = filtros;
+    const params = new URLSearchParams({
+      skip,
+      limit,
+      ...outrosFiltros
+    });
+    
+    const response = await fetch(`${API_URL}/cidadaos?${params.toString()}`, {
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao buscar cidadãos');
+    }
+    
+    return await response.json();
   }, []);
   
   const carregarCidadaos = useCallback(async (filtros = {}) => {
+    setLoading(true);
     try {
-      setLoading(true);
       const data = await buscarCidadaos(filtros);
       setCidadaos(data.items || data);
       setTotalCidadaos(data.total || data.length);
       return data;
-    } catch (error) {
-      console.error('Erro ao carregar cidadãos:', error);
-      throw error;
     } finally {
       setLoading(false);
     }

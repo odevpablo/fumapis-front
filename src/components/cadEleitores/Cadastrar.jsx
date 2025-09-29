@@ -8,12 +8,12 @@ const Cadastrar = () => {
     cpf: "",
     nomeConjuge: "",
     cpfConjuge: "",
+    zona: "",
     bairro: "",
     telefone: "",
     email: "",
     enderecoCompleto: "",
-    programaSocial: "",
-    statusCadastro: "Ativo"
+    programaSocial: ""
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,15 +133,15 @@ const Cadastrar = () => {
         cpf: cpfLimpo,
         nome_conjuge: formData.nomeConjuge || null,
         cpf_conjuge: formData.cpfConjuge ? formData.cpfConjuge.replace(/\D/g, '') : null,
+        zona: formData.zona || null,
         bairro: formData.bairro,
         telefone: formData.telefone || null,
         email: formData.email || null,
         endereco_completo: formData.enderecoCompleto || null,
-        programa_social: formData.programaSocial || null,
-        status_cadastro: formData.statusCadastro || 'Ativo'
+        programa_social: formData.programaSocial || null
       };
       
-      const response = await fetch('http://127.0.0.1:8000/cidadaos/', {
+      const response = await fetch('http://api.fumapis.org/cidadaos/', {
         method: 'POST',
         headers: {
           'accept': 'application/json',
@@ -164,8 +164,8 @@ const Cadastrar = () => {
           if (errorData.email) {
             errorMessage = `E-mail: ${errorData.email.join(' ')}`;
           }
-        } catch (e) {
-          console.error('Erro ao processar resposta de erro:', e);
+        } catch {
+          // Handle error silently
         }
         throw new Error(errorMessage);
       }
@@ -183,6 +183,7 @@ const Cadastrar = () => {
         cpf: "",
         nomeConjuge: "",
         cpfConjuge: "",
+        zona: "",
         bairro: "",
         telefone: "",
         email: "",
@@ -197,12 +198,15 @@ const Cadastrar = () => {
       navigate('/consultar');
       
     } catch (error) {
-      console.error('Erro ao cadastrar cidadão:', error);
       setSubmitError(error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const zonas = [
+    "Sul", "Leste", "Norte", "Centro Oeste"
+  ];
 
   const bairros = [
     "Centro", "Eldorado", "Piraporinha", "Taboão", "Serra", "Campanário",
@@ -213,9 +217,6 @@ const Cadastrar = () => {
     "Bolsa Família", "BPC", "CadÚnico", "Nenhum", "Outros"
   ];
 
-  const statusCadastro = [
-    "Pendente", "Elegível"
-  ];
 
   return (
     <div className="container" style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
@@ -297,6 +298,29 @@ const Cadastrar = () => {
           </div>
           <div>
             <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Zona *</label>
+              <select
+                name="zona"
+                value={formData.zona}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da",
+                  backgroundColor: "white",
+                  marginBottom: "20px"
+                }}
+                required
+              >
+                <option value="">Selecione uma zona</option>
+                {zonas.map((zona) => (
+                  <option key={zona} value={zona}>
+                    {zona}
+                  </option>
+                ))}
+              </select>
+
               <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Bairro *</label>
               <select
                 name="bairro"
@@ -376,54 +400,27 @@ const Cadastrar = () => {
 
         </div>
 
-        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-          <div className="form-group">
-            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Programa Social</label>
-            <select
-              name="programaSocial"
-              value={formData.programaSocial}
-              onChange={handleChange}
-              style={{
-                width: "100%",
-                padding: "10px",
-                borderRadius: "4px",
-                border: "1px solid #ced4da",
-                backgroundColor: "white"
-              }}
-            >
-              <option value="">Selecione um programa</option>
-              {programasSociais.map((programa) => (
-                <option key={programa} value={programa}>
-                  {programa}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Status do Cadastro *</label>
-            <select
-              name="statusCadastro"
-              value={formData.statusCadastro}
-              onChange={handleChange}
-              style={{
-                width: "100%",
-                padding: "10px",
-                borderRadius: "4px",
-                border: "1px solid #ced4da",
-                backgroundColor: "white"
-              }}
-              disabled={isSubmitting}
-            >
-              <option value="">Selecione o status</option>
-              {statusCadastro.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-
-          </div>
+        <div className="form-group" style={{ marginBottom: "20px" }}>
+          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Programa Social</label>
+          <select
+            name="programaSocial"
+            value={formData.programaSocial}
+            onChange={handleChange}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: "4px",
+              border: "1px solid #ced4da",
+              backgroundColor: "white"
+            }}
+          >
+            <option value="">Selecione um programa</option>
+            {programasSociais.map((programa) => (
+              <option key={programa} value={programa}>
+                {programa}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "30px" }}>
@@ -448,8 +445,7 @@ const Cadastrar = () => {
                 telefone: "",
                 email: "",
                 enderecoCompleto: "",
-                programaSocial: "",
-                statusCadastro: "Pendente"
+                programaSocial: ""
               });
               setSubmitError('');
             }}

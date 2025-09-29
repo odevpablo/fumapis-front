@@ -4,29 +4,13 @@ import TabelaBairros from "./TabelaBairros";
 import LogsModal from "./LogsModal";
 import useEleitores from "../../hooks/useEleitores";
 
-const fakeLogs = [
-  { data: '10/08/2025 22:56', msg: 'Usuário João acessou o sistema.' },
-  { data: '10/08/2025 22:57', msg: 'Novo eleitor cadastrado: Maria da Silva.' },
-  { data: '10/08/2025 22:58', msg: 'Importação de dados concluída.' },
-  { data: '10/08/2025 22:59', msg: 'Erro ao tentar votar: eleitor pendente.' },
-  { data: '10/08/2025 23:00', msg: 'Usuário Ana realizou logout.' },
-];
 
 const Dashboard = () => {
-  const [logsOpen, setLogsOpen] = useState(false);
   const [erroCarregamento, setErroCarregamento] = useState(null);
   const { stats, carregarDados, loading } = useEleitores();
   
-  // Atualizar logs quando houver alterações nos stats
-  useEffect(() => {
-    if (stats?.total > 0) {
-      fakeLogs.unshift({
-        data: new Date().toLocaleString(),
-        msg: `Dados atualizados: ${stats.total} eleitores no total.`
-      });
-    }
-  }, [stats]);
-  
+
+
   // Carregar dados iniciais apenas uma vez
   useEffect(() => {
     const carregarDadosIniciais = async () => {
@@ -34,7 +18,6 @@ const Dashboard = () => {
         setErroCarregamento(null);
         await carregarDados();
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
         setErroCarregamento(error.message || 'Erro ao carregar dados. Tente novamente mais tarde.');
       }
     };
@@ -79,31 +62,6 @@ const Dashboard = () => {
 
   return (
     <div style={{ padding: 32, position: 'relative' }}>
-      <button
-        onClick={() => setLogsOpen(true)}
-        style={{
-          position: 'fixed',
-          top: 90,
-          right: 32,
-          zIndex: 900,
-          background: '#1a237e',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '50%',
-          width: 54,
-          height: 54,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.13)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 28,
-          cursor: 'pointer',
-        }}
-        title="Abrir Logs"
-      >
-        <i className="fas fa-clipboard-list"></i>
-      </button>
-      <LogsModal open={logsOpen} onClose={() => setLogsOpen(false)} logs={fakeLogs} />
       <h2 style={{ marginBottom: 24 }}>Dashboard</h2>
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 40 }}>
         {statsCards.map((stat) => (

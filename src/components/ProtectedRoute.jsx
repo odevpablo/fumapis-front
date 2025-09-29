@@ -3,9 +3,7 @@ import { Navigate, useLocation, Outlet } from "react-router-dom";
 
 // Função utilitária para checar autenticação
 function isAuthenticated() {
-  const isAuth = localStorage.getItem("isAuthenticated") === "true";
-  console.log('Verificando autenticação:', isAuth);
-  return isAuth;
+  return localStorage.getItem("isAuthenticated") === "true";
 }
 
 const ProtectedRoute = ({ children }) => {
@@ -13,13 +11,10 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   useEffect(() => {
-    console.log('ProtectedRoute - path atual:', location.pathname);
     const auth = isAuthenticated();
-    console.log('ProtectedRoute - Usuário autenticado?', auth);
     setIsAuth(auth);
     
     if (!auth) {
-      console.log('Redirecionando para /login...');
       // Salva a URL atual para redirecionar após o login
       localStorage.setItem('redirectAfterLogin', location.pathname);
     }
@@ -27,7 +22,6 @@ const ProtectedRoute = ({ children }) => {
 
   // Mostra um loader enquanto verifica a autenticação
   if (isAuth === null) {
-    console.log('Verificando autenticação...');
     return (
       <div style={{
         display: 'flex',

@@ -5,8 +5,8 @@ import ptBR from 'date-fns/locale/pt-BR';
 const Consultar = () => {
   const [filtros, setFiltros] = useState({
     cpf: "",
+    nome: "",
     bairro: "",
-    elegivel: "",
     jaVotou: ""
   });
   const [resultados, setResultados] = useState([]);
@@ -36,13 +36,10 @@ const Consultar = () => {
       // Limpa os resultados anteriores
       setResultados([]);
       
-      // Verifica se o CPF foi preenchido
-      if (!filtros.cpf.trim()) {
-        throw new Error("Por favor, informe um CPF para consulta");
+      // Verifica se pelo menos um filtro foi preenchido
+      if (!filtros.cpf.trim() && !filtros.nome.trim() && !filtros.bairro) {
+        throw new Error("Por favor, informe pelo menos um filtro para a busca (CPF, Nome ou Bairro)");
       }
-      
-      // Remove caracteres não numéricos do CPF
-      const cpfLimpo = filtros.cpf.replace(/\D/g, '');
       
       // Obtém o token de autenticação
       const token = localStorage.getItem('token');
@@ -50,45 +47,73 @@ const Consultar = () => {
         throw new Error("Usuário não autenticado. Por favor, faça login novamente.");
       }
       
-      // Faz a requisição para a API
-      const response = await fetch(`http://127.0.0.1:8000/cidadaos/cpf/${cpfLimpo}`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Token ${token}`
+      // Configuração dos headers
+      const headers = {
+        'accept': 'application/json',
+        'Authorization': `Token ${token}`
+      };
+      
+      let url = 'http://127.0.0.1:8000/cidadaos/';
+      
+      // Se tiver nome, usa o endpoint de busca por nome
+      if (filtros.nome.trim()) {
+        const nomeFormatado = encodeURIComponent(filtros.nome.trim().toUpperCase());
+        url = `http://127.0.0.1:8000/cidadaos/nome/${nomeFormatado}?limit=10`;
+      } 
+      // Se tiver CPF, busca por CPF
+      else if (filtros.cpf.trim()) {
+        const cpfLimpo = filtros.cpf.replace(/\D/g, '');
+        if (cpfLimpo.length !== 11) {
+          throw new Error("CPF inválido. O CPF deve conter 11 dígitos.");
         }
+        url = `http://127.0.0.1:8000/cidadaos/cpf/${cpfLimpo}`;
+      }
+      // Se tiver apenas bairro, usa o endpoint de busca por bairro
+      else if (filtros.bairro) {
+        const bairroFormatado = encodeURIComponent(filtros.bairro);
+        url = `http://127.0.0.1:8000/cidadaos/bairro/${bairroFormatado}?limit=20`;
+      }
+      
+      // Faz a requisição para a API
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers
       });
       
       if (!response.ok) {
         if (response.status === 404) {
-          throw new Error("Nenhum cidadão encontrado com o CPF informado.");
+          throw new Error("Nenhum cidadão encontrado com os critérios informados.");
         }
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Erro ao buscar dados do cidadão");
+        throw new Error(errorData.detail || `Erro ao buscar dados: ${response.statusText}`);
       }
       
-      const cidadao = await response.json();
+      let cidadaos = await response.json();
+      
+      // Se a resposta for um único objeto (como na busca por CPF), converte para array
+      if (!Array.isArray(cidadaos)) {
+        cidadaos = [cidadaos];
+      }
       
       // Formata os dados para exibição
-      const resultadoFormatado = {
+      const resultadosFormatados = cidadaos.map(cidadao => ({
         id: cidadao.id,
-        nome: cidadao.nome_completo,
+        nome: cidadao.nome_completo || cidadao.nome,
         cpf: cidadao.cpf,
         bairro: cidadao.bairro,
-        status: cidadao.status_cadastro,
+        status: cidadao.status_cadastro || cidadao.status,
         telefone: cidadao.telefone || 'Não informado',
         email: cidadao.email || 'Não informado',
-        endereco: cidadao.endereco_completo || 'Endereço não informado',
-        programaSocial: cidadao.programa_social || 'Nenhum',
-        dataCadastro: cidadao.data_cadastro 
-          ? format(new Date(cidadao.data_cadastro), "dd/MM/yyyy HH:mm", { locale: ptBR })
+        endereco: cidadao.endereco_completo || cidadao.endereco || 'Endereço não informado',
+        programaSocial: cidadao.programa_social || cidadao.programaSocial || 'Nenhum',
+        dataCadastro: cidadao.data_cadastro || cidadao.dataCadastro
+          ? format(new Date(cidadao.data_cadastro || cidadao.dataCadastro), "dd/MM/yyyy HH:mm", { locale: ptBR })
           : 'Data não disponível'
-      };
+      }));
       
-      setResultados([resultadoFormatado]);
+      setResultados(resultadosFormatados);
       
     } catch (error) {
-      console.error("Erro ao buscar cidadão:", error);
       setErro(error.message || "Erro ao buscar dados. Tente novamente mais tarde.");
     } finally {
       setCarregando(false);
@@ -98,8 +123,8 @@ const Consultar = () => {
   const limparFiltros = () => {
     setFiltros({
       cpf: "",
+      nome: "",
       bairro: "",
-      elegivel: "",
       jaVotou: ""
     });
     setResultados([]);
@@ -125,7 +150,6 @@ const Consultar = () => {
     setDadosEditados({});
     
     // Aqui você deve adicionar a chamada para a API para salvar as alterações
-    console.log('Dados atualizados:', novosResultados[index]);
     // Exemplo: atualizarEleitor(novosResultados[index].id, dadosEditados);
   };
   
@@ -196,6 +220,31 @@ const Consultar = () => {
               fontWeight: 500,
               color: '#333'
             }}>
+              Nome
+            </label>
+            <input
+              type="text"
+              name="nome"
+              value={filtros.nome}
+              onChange={handleChange}
+              placeholder="Digite o nome"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid #ddd',
+                borderRadius: 4,
+                fontSize: 14
+              }}
+            />
+          </div>
+          
+          <div>
+            <label style={{
+              display: 'block',
+              marginBottom: 8,
+              fontWeight: 500,
+              color: '#333'
+            }}>
               Bairro
             </label>
             <select
@@ -219,35 +268,6 @@ const Consultar = () => {
               ))}
             </select>
           </div>
-          
-          <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 8,
-              fontWeight: 500,
-              color: '#333'
-            }}>
-              Elegível para votar
-            </label>
-            <select
-              name="elegivel"
-              value={filtros.elegivel}
-              onChange={handleChange}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #ddd',
-                borderRadius: 4,
-                fontSize: 14,
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="">Todos</option>
-              <option value="Sim">Sim</option>
-              <option value="Não">Não</option>
-            </select>
-          </div>
-          
           <div>
             <label style={{
               display: 'block',
@@ -436,33 +456,6 @@ const Consultar = () => {
                         </select>
                       ) : (
                         eleitor.bairro
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      {editando === index ? (
-                        <select
-                          value={dadosEditados.elegivel || eleitor.elegivel}
-                          onChange={(e) => handleChangeCampo('elegivel', e.target.value, index)}
-                          style={{
-                            padding: '6px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid #ddd',
-                            minWidth: '80px'
-                          }}
-                        >
-                          <option value="Sim">Sim</option>
-                          <option value="Não">Não</option>
-                        </select>
-                      ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          color: eleitor.elegivel === 'Sim' ? '#2e7d32' : '#d32f2f'
-                        }}>
-                          <i className={`fas fa-${eleitor.elegivel === 'Sim' ? 'check-circle' : 'times-circle'}`}></i>
-                          {eleitor.elegivel}
-                        </span>
                       )}
                     </td>
                     <td style={{ padding: '12px 16px' }}>

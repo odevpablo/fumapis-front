@@ -14,12 +14,8 @@ const LoginScreen = () => {
     setLoading(true);
     setError("");
     
-    console.log('Tentando fazer login com:', { username, password });
-    
     try {
-      console.log('Iniciando requisição de login...');
-      console.log('Enviando requisição para o servidor...');
-      const response = await fetch("http://localhost:8000/login", {
+      const response = await fetch("http://api.fumapis.org/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -30,24 +26,15 @@ const LoginScreen = () => {
         }),
       });
       
-      console.log('Resposta do servidor:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-      
       const responseData = await response.text();
-      console.log('Status da resposta:', response.status);
-      console.log('Cabeçalhos da resposta:', Object.fromEntries(response.headers.entries()));
-      console.log('Conteúdo da resposta:', responseData);
       
       if (!response.ok) {
         let errorMsg = "Usuário ou senha inválidos";
         try {
           const errorData = JSON.parse(responseData);
           errorMsg = errorData.detail || errorMsg;
-        } catch (e) {
-          console.error('Erro ao fazer parse da resposta de erro:', e);
+        } catch {
+          // Ignore JSON parse error, use default error message
         }
         throw new Error(errorMsg);
       }
@@ -56,7 +43,6 @@ const LoginScreen = () => {
       let userData;
       try {
         userData = JSON.parse(responseData);
-        console.log('Dados do usuário recebidos:', userData);
         
         localStorage.setItem("user", JSON.stringify({
           username: userData.username || username,
@@ -65,11 +51,7 @@ const LoginScreen = () => {
         
         // Armazena o token de acesso
         if (userData.access_token) {
-          console.log('Token de acesso recebido, armazenando...');
           localStorage.setItem("token", userData.access_token);
-          console.log('Token armazenado com sucesso');
-        } else {
-          console.warn('Nenhum token de acesso recebido na resposta');
         }
       } catch (parseError) {
         console.error('Erro ao fazer parse da resposta:', parseError);
@@ -77,12 +59,10 @@ const LoginScreen = () => {
       }
       
       // Se chegou aqui, o login foi bem-sucedido
-      console.log('Login bem-sucedido! Redirecionando...');
       localStorage.setItem("isAuthenticated", "true");
       
       // Obtém a URL de redirecionamento salva anteriormente ou usa '/home' como padrão
       const redirectTo = localStorage.getItem('redirectAfterLogin') || '/home';
-      console.log('Redirecionando para:', redirectTo);
       
       // Remove a URL de redirecionamento do localStorage
       localStorage.removeItem('redirectAfterLogin');
@@ -97,8 +77,7 @@ const LoginScreen = () => {
       }, 100);
       
     } catch (err) {
-      console.error('Erro durante o login:', err);
-      setError(err.message || "Erro ao fazer login. Verifique o console para mais detalhes.");
+      setError(err.message || "Erro ao fazer login. Tente novamente.");
     } finally {
       setLoading(false);
     }

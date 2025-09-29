@@ -72,7 +72,7 @@ const Cadastrar = () => {
         status_cadastro: formData.statusCadastro || 'Ativo'
       };
       
-      const response = await fetch('http://127.0.0.1:8000/cidadaos/', {
+      const response = await fetch('http://api.fumapis.org/cidadaos/', {
         method: 'POST',
         headers: {
           'accept': 'application/json',
