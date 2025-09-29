@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { format } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
+import config from '../../config';
 
 const Consultar = () => {
   const [filtros, setFiltros] = useState({
@@ -49,16 +50,16 @@ const Consultar = () => {
       
       // Configuração dos headers
       const headers = {
-        'accept': 'application/json',
+        ...config.corsConfig.headers,
         'Authorization': `Token ${token}`
       };
       
-      let url = 'http://127.0.0.1:8000/cidadaos/';
+      let url = `${config.API_URL}/cidadaos/`;
       
       // Se tiver nome, usa o endpoint de busca por nome
       if (filtros.nome.trim()) {
         const nomeFormatado = encodeURIComponent(filtros.nome.trim().toUpperCase());
-        url = `http://127.0.0.1:8000/cidadaos/nome/${nomeFormatado}?limit=10`;
+        url = `${config.API_URL}/cidadaos/nome/${nomeFormatado}?limit=10`;
       } 
       // Se tiver CPF, busca por CPF
       else if (filtros.cpf.trim()) {
@@ -66,19 +67,23 @@ const Consultar = () => {
         if (cpfLimpo.length !== 11) {
           throw new Error("CPF inválido. O CPF deve conter 11 dígitos.");
         }
-        url = `http://127.0.0.1:8000/cidadaos/cpf/${cpfLimpo}`;
+        url = `${config.API_URL}/cidadaos/cpf/${cpfLimpo}`;
       }
       // Se tiver apenas bairro, usa o endpoint de busca por bairro
       else if (filtros.bairro) {
         const bairroFormatado = encodeURIComponent(filtros.bairro);
-        url = `http://127.0.0.1:8000/cidadaos/bairro/${bairroFormatado}?limit=20`;
+        url = `${config.API_URL}/cidadaos/bairro/${bairroFormatado}?limit=20`;
       }
       
       // Faz a requisição para a API
       const response = await fetch(url, {
         method: 'GET',
-        headers: headers
+        headers: headers,
+        ...config.corsConfig
       });
+      
+      console.log('URL da requisição:', url);
+      console.log('Headers:', headers);
       
       if (!response.ok) {
         if (response.status === 404) {

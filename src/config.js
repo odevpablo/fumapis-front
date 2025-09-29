@@ -1,9 +1,20 @@
+// Configuração da API
 const config = {
-  // Em desenvolvimento, usamos o proxy do Vite (/api)
-  // Em produção, usamos a URL completa da API
+  // Em produção, usa HTTP diretamente (sem HTTPS)
+  // Em desenvolvimento, usa o proxy do Vite (/api)
   API_URL: import.meta.env.PROD 
-    ? 'https://api.fumapis.org' 
+    ? 'http://api.fumapis.org'  // Mudei para HTTP
     : '/api',
+  
+  // Configurações de CORS para requisições
+  corsConfig: {
+    mode: 'cors',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    }
+  },
   
   // Identificação do ambiente
   env: import.meta.env.MODE || 'development'
