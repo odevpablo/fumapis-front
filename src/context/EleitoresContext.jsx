@@ -17,6 +17,7 @@ const EleitoresContext = createContext({
   carregarDados: async () => {},
   buscarCidadaos: async () => {},
   carregarCidadaos: async () => {},
+  atualizarEstatisticas: () => {},
 });
 
 export { EleitoresContext };

@@ -65,8 +65,8 @@ const EleitoresProvider = ({ children }) => {
     
     const total = new Set(dados.map(e => e.id)).size;
     const elegiveis = dados.filter(e => e.elegivel === true).length;
-    const pendentes = dados.filter(e => e.status_cadastro === 'Pendente').length;
     const votaram = dados.filter(e => e.votou === true || e.votou === 'true').length;
+    const pendentes = dados.filter(e => !e.votou || e.votou === 'false' || e.votou === false).length;
     const semBairro = dados.filter(e => !e.bairro).length;
     
     return {

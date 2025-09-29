@@ -63,18 +63,6 @@ const AppLayout = () => {
           >
             Importar
           </NavLink>
-          <NavLink 
-            to="/usuarios" 
-            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-          >
-            Usuários
-          </NavLink>
-          <NavLink 
-            to="/relatorios" 
-            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-          >
-            Relatórios
-          </NavLink>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

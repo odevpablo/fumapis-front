@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { format } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import config from '../../config';
+import { EleitoresContext } from '../../context/EleitoresContext';
 
 const Consultar = () => {
   const [filtros, setFiltros] = useState({
@@ -15,9 +16,17 @@ const Consultar = () => {
   const [erro, setErro] = useState("");
   const [editando, setEditando] = useState(null);
   const [dadosEditados, setDadosEditados] = useState({});
+  const { atualizarEstatisticas } = useContext(EleitoresContext);
 
   const bairros = [
     "Centro", "Vila Nova", "Jardim das Flores", "Alto da Serra", "Vale Verde"
+  ];
+  
+  const zonas = [
+    "Sul",
+    "Leste",
+    "Norte",
+    "Centro-Oeste"
   ];
 
   const handleChange = (e) => {
@@ -95,6 +104,9 @@ const Consultar = () => {
       
       let cidadaos = await response.json();
       
+      // Log para depuração - remover depois
+      console.log('Dados recebidos da API:', cidadaos);
+      
       // Se a resposta for um único objeto (como na busca por CPF), converte para array
       if (!Array.isArray(cidadaos)) {
         cidadaos = [cidadaos];
@@ -106,6 +118,7 @@ const Consultar = () => {
         nome: cidadao.nome_completo || cidadao.nome,
         cpf: cidadao.cpf,
         bairro: cidadao.bairro,
+        zona: cidadao.zona || cidadao.zona_eleitoral, // Tenta pegar de zona ou zona_eleitoral
         status: cidadao.status_cadastro || cidadao.status,
         telefone: cidadao.telefone || 'Não informado',
         email: cidadao.email || 'Não informado',
@@ -148,15 +161,56 @@ const Consultar = () => {
     setDadosEditados({});
   };
   
-  const salvarEdicao = (index) => {
-    const novosResultados = [...resultados];
-    novosResultados[index] = { ...novosResultados[index], ...dadosEditados };
-    setResultados(novosResultados);
-    setEditando(null);
-    setDadosEditados({});
-    
-    // Aqui você deve adicionar a chamada para a API para salvar as alterações
-    // Exemplo: atualizarEleitor(novosResultados[index].id, dadosEditados);
+  const salvarEdicao = async (index) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const eleitor = resultados[index];
+      const dadosAtualizados = {
+        cpf: dadosEditados.cpf,
+        bairro: dadosEditados.bairro,
+        zona: dadosEditados.zona
+      };
+      
+      const response = await fetch(`${config.API_URL}/cidadaos/${eleitor.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`,
+          ...config.corsConfig.headers
+        },
+        body: JSON.stringify(dadosAtualizados),
+        ...config.corsConfig
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar os dados do eleitor');
+      }
+      
+      const dadosAtualizadosAPI = await response.json();
+      
+      // Atualiza o estado local com os dados retornados pela API
+      const novosResultados = [...resultados];
+      novosResultados[index] = {
+        ...novosResultados[index],
+        cpf: dadosAtualizadosAPI.cpf || eleitor.cpf,
+        bairro: dadosAtualizadosAPI.bairro || eleitor.bairro,
+        zona: dadosAtualizadosAPI.zona || eleitor.zona
+      };
+      
+      setResultados(novosResultados);
+      setEditando(null);
+      setDadosEditados({});
+      
+      alert('Dados atualizados com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao salvar alterações:', error);
+      alert('Não foi possível salvar as alterações. Tente novamente.');
+    }
   };
   
   const handleChangeCampo = (campo, valor) => {
@@ -427,6 +481,7 @@ const Consultar = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Nome</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>CPF</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Bairro</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Zona</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555', width: '120px' }}>Ações</th>
                 </tr>
               </thead>
@@ -467,6 +522,11 @@ const Consultar = () => {
                             const novosResultados = [...resultados];
                             novosResultados[index].votou = novoStatus;
                             setResultados(novosResultados);
+                            
+                            // Atualiza as estatísticas
+                            if (atualizarEstatisticas) {
+                              atualizarEstatisticas(novosResultados);
+                            }
 
                           } catch (error) {
                             console.error('Erro ao atualizar status de voto:', error);
@@ -499,12 +559,29 @@ const Consultar = () => {
                         {eleitor.votou ? 'Votou' : 'Não votou'}
                       </button>
                     </td>
-                    <td style={{ padding: '12px 16px' }}>{eleitor.cpf}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {editando === index ? (
+                        <input
+                          type="text"
+                          value={dadosEditados.cpf || ''}
+                          onChange={(e) => handleChangeCampo('cpf', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '6px 8px',
+                            border: '1px solid #ddd',
+                            borderRadius: 4,
+                            fontSize: 14
+                          }}
+                        />
+                      ) : (
+                        eleitor.cpf
+                      )}
+                    </td>
                     <td style={{ padding: '12px 16px' }}>
                       {editando === index ? (
                         <select
                           value={dadosEditados.bairro || eleitor.bairro}
-                          onChange={(e) => handleChangeCampo('bairro', e.target.value, index)}
+                          onChange={(e) => handleChangeCampo('bairro', e.target.value)}
                           style={{
                             padding: '6px 8px',
                             borderRadius: '4px',
@@ -512,12 +589,34 @@ const Consultar = () => {
                             minWidth: '120px'
                           }}
                         >
+                          <option value="">Selecione um bairro</option>
                           {bairros.map((bairro, idx) => (
                             <option key={idx} value={bairro}>{bairro}</option>
                           ))}
                         </select>
                       ) : (
-                        eleitor.bairro
+                        eleitor.bairro || 'Não informado'
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {editando === index ? (
+                        <select
+                          value={dadosEditados.zona || eleitor.zona || ''}
+                          onChange={(e) => handleChangeCampo('zona', e.target.value)}
+                          style={{
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd',
+                            minWidth: '80px'
+                          }}
+                        >
+                          <option value="">Selecione</option>
+                          {zonas.map((zona, idx) => (
+                            <option key={idx} value={zona}>{zona}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        eleitor.zona || 'Não informada'
                       )}
                     </td>
                     <td style={{ padding: '12px 16px' }}>

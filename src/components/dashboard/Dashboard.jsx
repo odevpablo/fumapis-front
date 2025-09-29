@@ -28,9 +28,8 @@ const Dashboard = () => {
   
   const statsCards = [
     { label: 'Total de Eleitores', value: stats.total, color: '#1976d2', icon: 'fas fa-users' },
-    { label: 'Elegíveis', value: stats.elegiveis, color: '#388e3c', icon: 'fas fa-user-check' },
-    { label: 'Pendentes', value: stats.pendentes, color: '#fbc02d', icon: 'fas fa-user-clock' },
     { label: 'Votaram', value: stats.votaram, color: '#8e24aa', icon: 'fas fa-vote-yea' },
+    { label: 'Pendentes', value: stats.pendentes, color: '#fbc02d', icon: 'fas fa-user-clock' },
   ];
 
   // Se estiver carregando, mostra um indicador de carregamento
