@@ -113,7 +113,8 @@ const Consultar = () => {
         programaSocial: cidadao.programa_social || cidadao.programaSocial || 'Nenhum',
         dataCadastro: cidadao.data_cadastro || cidadao.dataCadastro
           ? format(new Date(cidadao.data_cadastro || cidadao.dataCadastro), "dd/MM/yyyy HH:mm", { locale: ptBR })
-          : 'Data não disponível'
+          : 'Data não disponível',
+        votou: cidadao.votou || false
       }));
       
       setResultados(resultadosFormatados);
@@ -426,8 +427,6 @@ const Consultar = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Nome</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>CPF</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Bairro</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Elegível</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Já Votou</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555', width: '120px' }}>Ações</th>
                 </tr>
               </thead>
@@ -441,7 +440,65 @@ const Consultar = () => {
                       transition: 'background-color 0.2s'
                     }}
                   >
-                    <td style={{ padding: '12px 16px' }}>{eleitor.nome}</td>
+                    <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {eleitor.nome}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const novoStatus = !eleitor.votou;
+                            const token = localStorage.getItem('token');
+                            
+                            const response = await fetch(`${config.API_URL}/cidadaos/${eleitor.id}/votou`, {
+                              method: 'PATCH',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Token ${token}`,
+                                ...config.corsConfig.headers
+                              },
+                              body: JSON.stringify({ votou: novoStatus }),
+                              ...config.corsConfig
+                            });
+
+                            if (!response.ok) {
+                              throw new Error('Erro ao atualizar o status de voto');
+                            }
+
+                            // Atualiza o estado local apenas se a requisição for bem-sucedida
+                            const novosResultados = [...resultados];
+                            novosResultados[index].votou = novoStatus;
+                            setResultados(novosResultados);
+
+                          } catch (error) {
+                            console.error('Erro ao atualizar status de voto:', error);
+                            // Aqui você pode adicionar uma notificação de erro para o usuário
+                            alert('Não foi possível atualizar o status de voto. Tente novamente.');
+                          }
+                        }}
+                        style={{
+                          backgroundColor: eleitor.votou ? '#4caf50' : '#e0e0e0',
+                          color: eleitor.votou ? 'white' : '#333',
+                          border: 'none',
+                          borderRadius: '10px',
+                          padding: '2px 10px',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.2s',
+                          marginLeft: '8px',
+                          outline: 'none',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                        title={eleitor.votou ? 'Marcar como não votou' : 'Marcar como votou'}
+                      >
+                        <i 
+                          className={`fas fa-${eleitor.votou ? 'check' : 'times'}`} 
+                          style={{ fontSize: '8px' }}
+                        ></i>
+                        {eleitor.votou ? 'Votou' : 'Não votou'}
+                      </button>
+                    </td>
                     <td style={{ padding: '12px 16px' }}>{eleitor.cpf}</td>
                     <td style={{ padding: '12px 16px' }}>
                       {editando === index ? (
@@ -461,33 +518,6 @@ const Consultar = () => {
                         </select>
                       ) : (
                         eleitor.bairro
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      {editando === index ? (
-                        <select
-                          value={dadosEditados.jaVotou || eleitor.jaVotou}
-                          onChange={(e) => handleChangeCampo('jaVotou', e.target.value, index)}
-                          style={{
-                            padding: '6px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid #ddd',
-                            minWidth: '80px'
-                          }}
-                        >
-                          <option value="Sim">Sim</option>
-                          <option value="Não">Não</option>
-                        </select>
-                      ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          color: eleitor.jaVotou === 'Sim' ? '#2e7d32' : '#d32f2f'
-                        }}>
-                          <i className={`fas fa-${eleitor.jaVotou === 'Sim' ? 'check-circle' : 'times-circle'}`}></i>
-                          {eleitor.jaVotou}
-                        </span>
                       )}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
