@@ -1,16 +1,27 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://api.fumapis.org',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+export default defineConfig(({ mode }) => {
+  return {
+    plugins: [react()],
+    define: {
+      'import.meta.env.PROD': JSON.stringify(mode === 'production'),
+      'import.meta.env.MODE': JSON.stringify(mode)
+    },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://api.fumapis.org',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        }
       }
+    },
+    // Configuração para build de produção
+    build: {
+      sourcemap: mode === 'development',
+      minify: mode === 'production' ? 'terser' : false,
+      target: 'esnext'
     }
-  }
-})
+  };
+});

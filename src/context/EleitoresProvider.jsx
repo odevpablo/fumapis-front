@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { EleitoresContext } from './EleitoresContext';
 
-// URL da API (usando proxy configurado no vite.config.js)
-const API_URL = '/api';
+import config from '../config';
+
+// URL da API (configurada dinamicamente para desenvolvimento/produção)
+const API_URL = config.API_URL;
 
 const EleitoresProvider = ({ children }) => {
   const [eleitores, setEleitores] = useState([]);
