@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { EleitoresContext } from './EleitoresContext';
 
-// URL da API
-const API_URL = 'https://api.fumapis.org';
+// URL da API (usando proxy configurado no vite.config.js)
+const API_URL = '/api';
 
 const EleitoresProvider = ({ children }) => {
   const [eleitores, setEleitores] = useState([]);
@@ -85,7 +85,7 @@ const EleitoresProvider = ({ children }) => {
         return [];
       }
       
-      const response = await fetch(`${API_URL}/cidadaos`, {
+      const response = await fetch(`${API_URL}/cidadaos/`, {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
