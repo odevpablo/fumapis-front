@@ -43,21 +43,17 @@ const Consultar = () => {
     setErro("");
     
     try {
-      // Limpa os resultados anteriores
       setResultados([]);
       
-      // Verifica se pelo menos um filtro foi preenchido
       if (!filtros.cpf.trim() && !filtros.nome.trim() && !filtros.bairro) {
         throw new Error("Por favor, informe pelo menos um filtro para a busca (CPF, Nome ou Bairro)");
       }
       
-      // Obtém o token de autenticação
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error("Usuário não autenticado. Por favor, faça login novamente.");
       }
       
-      // Configuração dos headers
       const headers = {
         ...config.corsConfig.headers,
         'Authorization': `Token ${token}`
@@ -65,34 +61,25 @@ const Consultar = () => {
       
       let url = `${config.API_URL}/cidadaos/`;
       
-      // Se tiver nome, usa o endpoint de busca por nome
       if (filtros.nome.trim()) {
         const nomeFormatado = encodeURIComponent(filtros.nome.trim().toUpperCase());
-        url = `${config.API_URL}/cidadaos/nome/${nomeFormatado}?limit=10`;
-      } 
-      // Se tiver CPF, busca por CPF
-      else if (filtros.cpf.trim()) {
+        url = `${config.API_URL}/cidadaos/nome/${nomeFormatado}?limit=130`;
+      } else if (filtros.cpf.trim()) {
         const cpfLimpo = filtros.cpf.replace(/\D/g, '');
         if (cpfLimpo.length !== 11) {
           throw new Error("CPF inválido. O CPF deve conter 11 dígitos.");
         }
         url = `${config.API_URL}/cidadaos/cpf/${cpfLimpo}`;
-      }
-      // Se tiver apenas bairro, usa o endpoint de busca por bairro
-      else if (filtros.bairro) {
+      } else if (filtros.bairro) {
         const bairroFormatado = encodeURIComponent(filtros.bairro);
-        url = `${config.API_URL}/cidadaos/bairro/${bairroFormatado}?limit=20`;
+        url = `${config.API_URL}/cidadaos/bairro/${bairroFormatado}?limit=130`;
       }
       
-      // Faz a requisição para a API
       const response = await fetch(url, {
         method: 'GET',
         headers: headers,
         ...config.corsConfig
       });
-      
-      console.log('URL da requisição:', url);
-      console.log('Headers:', headers);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -104,27 +91,22 @@ const Consultar = () => {
       
       let cidadaos = await response.json();
       
-      // Log para depuração - remover depois
-      console.log('Dados recebidos da API:', cidadaos);
-      
-      // Se a resposta for um único objeto (como na busca por CPF), converte para array
       if (!Array.isArray(cidadaos)) {
         cidadaos = [cidadaos];
       }
       
-      // Formata os dados para exibição
       const resultadosFormatados = cidadaos.map(cidadao => ({
         id: cidadao.id,
         nome: cidadao.nome_completo || cidadao.nome,
         cpf: cidadao.cpf,
         bairro: cidadao.bairro,
-        zona: cidadao.zona || cidadao.zona_eleitoral, // Tenta pegar de zona ou zona_eleitoral
+        zona: cidadao.zona || cidadao.zona_eleitoral,
         status: cidadao.status_cadastro || cidadao.status,
         telefone: cidadao.telefone || 'Não informado',
         email: cidadao.email || 'Não informado',
         endereco: cidadao.endereco_completo || cidadao.endereco || 'Endereço não informado',
         programaSocial: cidadao.programa_social || cidadao.programaSocial || 'Nenhum',
-        dataCadastro: cidadao.data_cadastro || cidadao.dataCadastro
+        dataCadastro: (cidadao.data_cadastro || cidadao.dataCadastro)
           ? format(new Date(cidadao.data_cadastro || cidadao.dataCadastro), "dd/MM/yyyy HH:mm", { locale: ptBR })
           : 'Data não disponível',
         votou: cidadao.votou || false
@@ -192,7 +174,6 @@ const Consultar = () => {
       
       const dadosAtualizadosAPI = await response.json();
       
-      // Atualiza o estado local com os dados retornados pela API
       const novosResultados = [...resultados];
       novosResultados[index] = {
         ...novosResultados[index],
@@ -328,6 +309,7 @@ const Consultar = () => {
               ))}
             </select>
           </div>
+          
           <div>
             <label style={{
               display: 'block',
@@ -482,7 +464,7 @@ const Consultar = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>CPF</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Bairro</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Zona</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555', width: '120px' }}>Ações</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555', width: '120px' }}>Status Voto</th>
                 </tr>
               </thead>
               <tbody>
@@ -495,71 +477,16 @@ const Consultar = () => {
                       transition: 'background-color 0.2s'
                     }}
                   >
-                    <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {eleitor.nome}
-                      <button
-                        onClick={async () => {
-                          try {
-                            const novoStatus = !eleitor.votou;
-                            const token = localStorage.getItem('token');
-                            
-                            const response = await fetch(`${config.API_URL}/cidadaos/${eleitor.id}/votou`, {
-                              method: 'PATCH',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Token ${token}`,
-                                ...config.corsConfig.headers
-                              },
-                              body: JSON.stringify({ votou: novoStatus }),
-                              ...config.corsConfig
-                            });
-
-                            if (!response.ok) {
-                              throw new Error('Erro ao atualizar o status de voto');
-                            }
-
-                            // Atualiza o estado local apenas se a requisição for bem-sucedida
-                            const novosResultados = [...resultados];
-                            novosResultados[index].votou = novoStatus;
-                            setResultados(novosResultados);
-                            
-                            // Atualiza as estatísticas
-                            if (atualizarEstatisticas) {
-                              atualizarEstatisticas(novosResultados);
-                            }
-
-                          } catch (error) {
-                            console.error('Erro ao atualizar status de voto:', error);
-                            // Aqui você pode adicionar uma notificação de erro para o usuário
-                            alert('Não foi possível atualizar o status de voto. Tente novamente.');
-                          }
-                        }}
-                        style={{
-                          backgroundColor: eleitor.votou ? '#4caf50' : '#e0e0e0',
-                          color: eleitor.votou ? 'white' : '#333',
-                          border: 'none',
-                          borderRadius: '10px',
-                          padding: '2px 10px',
-                          fontSize: '10px',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'all 0.2s',
-                          marginLeft: '8px',
-                          outline: 'none',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                        }}
-                        title={eleitor.votou ? 'Marcar como não votou' : 'Marcar como votou'}
-                      >
-                        <i 
-                          className={`fas fa-${eleitor.votou ? 'check' : 'times'}`} 
-                          style={{ fontSize: '8px' }}
-                        ></i>
-                        {eleitor.votou ? 'Votou' : 'Não votou'}
-                      </button>
-                    </td>
                     <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 500, color: '#333' }}>{eleitor.nome}</div>
+                      {eleitor.email && eleitor.email !== 'Não informado' && (
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                          {eleitor.email}
+                        </div>
+                      )}
+                    </td>
+                    
+                    <td style={{ padding: '12px 16px', color: '#555' }}>
                       {editando === index ? (
                         <input
                           type="text"
@@ -574,10 +501,11 @@ const Consultar = () => {
                           }}
                         />
                       ) : (
-                        eleitor.cpf
+                        eleitor.cpf || 'Não informado'
                       )}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    
+                    <td style={{ padding: '12px 16px', color: '#555' }}>
                       {editando === index ? (
                         <select
                           value={dadosEditados.bairro || eleitor.bairro}
@@ -598,7 +526,8 @@ const Consultar = () => {
                         eleitor.bairro || 'Não informado'
                       )}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    
+                    <td style={{ padding: '12px 16px', color: '#555' }}>
                       {editando === index ? (
                         <select
                           value={dadosEditados.zona || eleitor.zona || ''}
@@ -619,67 +548,58 @@ const Consultar = () => {
                         eleitor.zona || 'Não informada'
                       )}
                     </td>
+                    
                     <td style={{ padding: '12px 16px' }}>
-                      {editando === index ? (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button 
-                            onClick={() => salvarEdicao(index)}
-                            style={{
-                              backgroundColor: '#4caf50',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '12px'
-                            }}
-                            title="Salvar"
-                          >
-                            <i className="fas fa-check" style={{ fontSize: '12px' }}></i>
-                          </button>
-                          <button 
-                            onClick={cancelarEdicao}
-                            style={{
-                              backgroundColor: '#f44336',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '12px'
-                            }}
-                            title="Cancelar"
-                          >
-                            <i className="fas fa-times" style={{ fontSize: '12px' }}></i>
-                          </button>
-                        </div>
-                      ) : (
-                        <button 
-                          onClick={() => iniciarEdicao(index)}
-                          style={{
-                            backgroundColor: '#2196f3',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '4px 8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '12px'
-                          }}
-                          title="Editar"
-                        >
-                          <i className="fas fa-edit" style={{ fontSize: '12px' }}></i>
-                          Editar
-                        </button>
-                      )}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const novoStatus = !eleitor.votou;
+                            const token = localStorage.getItem('token');
+                            const response = await fetch(`${config.API_URL}/cidadaos/${eleitor.id}/votou`, {
+                              method: 'PATCH',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Token ${token}`,
+                                ...config.corsConfig.headers
+                              },
+                              body: JSON.stringify({ votou: novoStatus }),
+                              ...config.corsConfig
+                            });
+                            if (!response.ok) throw new Error();
+                            const novosResultados = [...resultados];
+                            novosResultados[index].votou = novoStatus;
+                            setResultados(novosResultados);
+                            if (atualizarEstatisticas) atualizarEstatisticas(novosResultados);
+                          } catch {
+                            alert('Erro ao atualizar status de voto.');
+                          }
+                        }}
+                        style={{
+                          backgroundColor: eleitor.votou ? '#4caf50' : '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          padding: '4px 12px',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.2s',
+                          outline: 'none',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <i 
+                          className={`fas fa-${eleitor.votou ? 'check' : 'times'}`} 
+                          style={{ fontSize: '10px' }}
+                        ></i>
+                        {eleitor.votou ? 'Votou' : 'Não votou'}
+                      </button>
+                    </td>
+                    
+                    <td style={{ padding: '12px 16px' }}>
+                      
                     </td>
                   </tr>
                 ))}
