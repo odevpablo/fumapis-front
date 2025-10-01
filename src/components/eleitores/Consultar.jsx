@@ -29,6 +29,14 @@ const Consultar = () => {
     "Centro-Oeste"
   ];
 
+  const programasSociais = [
+    "Bolsa Família",
+    "BPC",
+    "Auxílio Brasil", 
+    "Outro",
+    "Nenhum"
+  ];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFiltros(prev => ({
@@ -97,19 +105,21 @@ const Consultar = () => {
       
       const resultadosFormatados = cidadaos.map(cidadao => ({
         id: cidadao.id,
-        nome: cidadao.nome_completo || cidadao.nome,
+        nome_completo: cidadao.nome_completo || cidadao.nome,
         cpf: cidadao.cpf,
         bairro: cidadao.bairro,
         zona: cidadao.zona || cidadao.zona_eleitoral,
-        status: cidadao.status_cadastro || cidadao.status,
+        status_cadastro: cidadao.status_cadastro || cidadao.status,
         telefone: cidadao.telefone || 'Não informado',
         email: cidadao.email || 'Não informado',
-        endereco: cidadao.endereco_completo || cidadao.endereco || 'Endereço não informado',
-        programaSocial: cidadao.programa_social || cidadao.programaSocial || 'Nenhum',
-        dataCadastro: (cidadao.data_cadastro || cidadao.dataCadastro)
+        endereco_completo: cidadao.endereco_completo || cidadao.endereco || 'Endereço não informado',
+        programa_social: cidadao.programa_social || cidadao.programaSocial || 'Nenhum',
+        data_cadastro: (cidadao.data_cadastro || cidadao.dataCadastro)
           ? format(new Date(cidadao.data_cadastro || cidadao.dataCadastro), "dd/MM/yyyy HH:mm", { locale: ptBR })
           : 'Data não disponível',
-        votou: cidadao.votou || false
+        votou: cidadao.votou || false,
+        elegivel: cidadao.elegivel || false,
+        ativo: cidadao.ativo !== undefined ? cidadao.ativo : true
       }));
       
       setResultados(resultadosFormatados);
@@ -135,62 +145,123 @@ const Consultar = () => {
   
   const iniciarEdicao = (index) => {
     setEditando(index);
-    setDadosEditados({ ...resultados[index] });
   };
   
   const cancelarEdicao = () => {
     setEditando(null);
-    setDadosEditados({});
   };
-  
-  const salvarEdicao = async (index) => {
+  // NOVA FUNÇÃO: Editar eleitor com PUT
+  const editarEleitor = async (index) => {
     try {
+      // 1. Verifica se o token existe no localStorage
       const token = localStorage.getItem('token');
+      console.log(' Token armazenado:', token);
+      
       if (!token) {
-        throw new Error('Usuário não autenticado');
+        console.error('Nenhum token encontrado no localStorage');
+        throw new Error('Usuário não autenticado. Faça login novamente.');
       }
       
-      const eleitor = resultados[index];
-      const dadosAtualizados = {
-        cpf: dadosEditados.cpf,
-        bairro: dadosEditados.bairro,
-        zona: dadosEditados.zona
+      // 2. Prepara os headers da requisição
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
       };
       
-      const response = await fetch(`${config.API_URL}/cidadaos/${eleitor.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`,
-          ...config.corsConfig.headers
-        },
-        body: JSON.stringify(dadosAtualizados),
-        ...config.corsConfig
+      console.log('Enviando requisição para:', `${config.API_URL}/cidadaos/`);
+      console.log('Headers da requisição:', JSON.stringify(headers, null, 2));
+      
+      // 3. Testa se o token é válido fazendo uma requisição de teste
+      const testResponse = await fetch(`${config.API_URL}/cidadaos/`, {
+        method: 'GET',
+        headers: headers
+      });
+      
+      console.log('Resposta da API - Status:', testResponse.status);
+      console.log('Resposta da API - Status Text:', testResponse.statusText);
+      
+      // 4. Verifica se o token é inválido (401 Unauthorized)
+      if (testResponse.status === 401) {
+        console.error('Token inválido ou expirado');
+        localStorage.removeItem('token');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('user');
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+      
+      const eleitorOriginal = resultados[index];
+      const dadosParaEnviar = {
+        // Sempre usa o nome original, independentemente do que foi editado
+        nome_completo: eleitorOriginal.nome_completo,
+        cpf: dadosEditados.cpf || eleitorOriginal.cpf,
+        bairro: dadosEditados.bairro || eleitorOriginal.bairro,
+        zona: dadosEditados.zona || eleitorOriginal.zona,
+        telefone: dadosEditados.telefone || eleitorOriginal.telefone,
+        email: dadosEditados.email || eleitorOriginal.email,
+        endereco_completo: dadosEditados.endereco_completo || eleitorOriginal.endereco_completo,
+        programa_social: dadosEditados.programa_social || eleitorOriginal.programa_social,
+        status_cadastro: dadosEditados.status_cadastro || eleitorOriginal.status_cadastro,
+        votou: dadosEditados.votou !== undefined ? dadosEditados.votou : eleitorOriginal.votou,
+        elegivel: dadosEditados.elegivel !== undefined ? dadosEditados.elegivel : eleitorOriginal.elegivel,
+        ativo: dadosEditados.ativo !== undefined ? dadosEditados.ativo : eleitorOriginal.ativo
+      };
+
+      // Limpar campos "Não informado"
+      Object.keys(dadosParaEnviar).forEach(key => {
+        if (dadosParaEnviar[key] === 'Não informado') {
+          dadosParaEnviar[key] = null;
+        }
+      });
+
+      console.log('📤 Enviando requisição PUT para:', `${config.API_URL}/cidadaos/${eleitorOriginal.id}`);
+      console.log('📦 Dados enviados:', JSON.stringify(dadosParaEnviar, null, 2));
+      
+      const response = await fetch(`${config.API_URL}/cidadaos/${eleitorOriginal.id}`, {
+        method: 'PUT',
+        headers: headers,
+        body: JSON.stringify(dadosParaEnviar)
+      });
+      
+      console.log('📥 Resposta da API (PUT):', {
+        status: response.status,
+        statusText: response.statusText
       });
       
       if (!response.ok) {
-        throw new Error('Erro ao atualizar os dados do eleitor');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Erro ao atualizar eleitor: ${response.statusText}`);
       }
       
       const dadosAtualizadosAPI = await response.json();
       
+      // Atualizar a lista local com os dados retornados da API
       const novosResultados = [...resultados];
       novosResultados[index] = {
         ...novosResultados[index],
-        cpf: dadosAtualizadosAPI.cpf || eleitor.cpf,
-        bairro: dadosAtualizadosAPI.bairro || eleitor.bairro,
-        zona: dadosAtualizadosAPI.zona || eleitor.zona
+        nome_completo: dadosAtualizadosAPI.nome_completo,
+        cpf: dadosAtualizadosAPI.cpf,
+        bairro: dadosAtualizadosAPI.bairro,
+        zona: dadosAtualizadosAPI.zona,
+        telefone: dadosAtualizadosAPI.telefone || 'Não informado',
+        email: dadosAtualizadosAPI.email || 'Não informado',
+        endereco_completo: dadosAtualizadosAPI.endereco_completo || 'Endereço não informado',
+        programa_social: dadosAtualizadosAPI.programa_social,
+        status_cadastro: dadosAtualizadosAPI.status_cadastro,
+        votou: dadosAtualizadosAPI.votou,
+        elegivel: dadosAtualizadosAPI.elegivel,
+        ativo: dadosAtualizadosAPI.ativo
       };
       
       setResultados(novosResultados);
       setEditando(null);
       setDadosEditados({});
       
-      alert('Dados atualizados com sucesso!');
+      alert('Eleitor atualizado com sucesso!');
       
     } catch (error) {
-      console.error('Erro ao salvar alterações:', error);
-      alert('Não foi possível salvar as alterações. Tente novamente.');
+      console.error('Erro ao editar eleitor:', error);
+      alert(`Não foi possível editar o eleitor: ${error.message}`);
     }
   };
   
@@ -216,6 +287,7 @@ const Consultar = () => {
         Consulta de Eleitores
       </h2>
       
+      {/* Formulário de busca (mantido igual) */}
       <form onSubmit={handleSubmit} style={{
         backgroundColor: 'white',
         padding: 24,
@@ -452,7 +524,7 @@ const Consultar = () => {
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
-              minWidth: 800
+              minWidth: 1000
             }}>
               <thead>
                 <tr style={{
@@ -464,7 +536,9 @@ const Consultar = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>CPF</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Bairro</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Zona</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555' }}>Programa Social</th>
                   <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555', width: '120px' }}>Status Voto</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 500, color: '#555', width: '150px' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -478,7 +552,7 @@ const Consultar = () => {
                     }}
                   >
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 500, color: '#333' }}>{eleitor.nome}</div>
+                      <div style={{ fontWeight: 500, color: '#333' }}>{eleitor.nome_completo}</div>
                       {eleitor.email && eleitor.email !== 'Não informado' && (
                         <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
                           {eleitor.email}
@@ -548,6 +622,27 @@ const Consultar = () => {
                         eleitor.zona || 'Não informada'
                       )}
                     </td>
+
+                    <td style={{ padding: '12px 16px', color: '#555' }}>
+                      {editando === index ? (
+                        <select
+                          value={dadosEditados.programa_social || eleitor.programa_social}
+                          onChange={(e) => handleChangeCampo('programa_social', e.target.value)}
+                          style={{
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd',
+                            minWidth: '120px'
+                          }}
+                        >
+                          {programasSociais.map((programa, idx) => (
+                            <option key={idx} value={programa}>{programa}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        eleitor.programa_social || 'Nenhum'
+                      )}
+                    </td>
                     
                     <td style={{ padding: '12px 16px' }}>
                       <button
@@ -599,7 +694,65 @@ const Consultar = () => {
                     </td>
                     
                     <td style={{ padding: '12px 16px' }}>
-                      
+                      {editando === index ? (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => editarEleitor(index)}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#4caf50',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <i className="fas fa-save" style={{ fontSize: '10px' }}></i>
+                            Salvar
+                          </button>
+                          <button
+                            onClick={cancelarEdicao}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#9e9e9e',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <i className="fas fa-times" style={{ fontSize: '10px' }}></i>
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => iniciarEdicao(index)}
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#2196f3',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <i className="fas fa-edit" style={{ fontSize: '10px' }}></i>
+                          Editar
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

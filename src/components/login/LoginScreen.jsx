@@ -52,6 +52,39 @@ const LoginScreen = () => {
         // Armazena o token de acesso
         if (userData.access_token) {
           localStorage.setItem("token", userData.access_token);
+          console.log('Token salvo no localStorage:', userData.access_token);
+          console.log('Dados do usuário:', JSON.stringify({
+            username: userData.username || username,
+            name: userData.name || username
+          }));
+          
+          // Exibe o token em um alerta estilizado
+          const tokenAlert = `
+            <div style=\
+              "position: fixed; 
+               top: 20px; 
+               right: 20px; 
+               background: #4CAF50; 
+               color: white; 
+               padding: 15px; 
+               border-radius: 5px; 
+               z-index: 10000;
+               max-width: 400px;
+               word-wrap: break-word;">
+              <h3 style="margin: 0 0 10px 0;">TOKEN SALVO COM SUCESSO!</h3>
+              <div style="background: white; color: black; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 12px; margin-bottom: 10px;">
+                ${userData.access_token}
+              </div>
+              <button onclick="this.parentElement.remove()" style="background: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Fechar</button>
+            </div>
+          `;
+          
+          const div = document.createElement('div');
+          div.innerHTML = tokenAlert;
+          document.body.appendChild(div.firstChild);
+          
+        } else {
+          console.error('Nenhum token recebido na resposta:', userData);
         }
       } catch (parseError) {
         console.error('Erro ao fazer parse da resposta:', parseError);

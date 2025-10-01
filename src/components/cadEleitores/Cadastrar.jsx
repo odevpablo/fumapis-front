@@ -6,12 +6,9 @@ const Cadastrar = () => {
   const [formData, setFormData] = useState({
     nomeCompleto: "",
     cpf: "",
-    nomeConjuge: "",
-    cpfConjuge: "",
+    cep: "",
     zona: "",
     bairro: "",
-    telefone: "",
-    email: "",
     enderecoCompleto: "",
     programaSocial: ""
   });
@@ -22,12 +19,77 @@ const Cadastrar = () => {
   const { adicionarEleitor } = useContext(EleitoresContext);
   const navigate = useNavigate();
 
+  // Função para buscar endereço pelo CEP
+  const buscarEnderecoPorCEP = async (cep) => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        const enderecoCompleto = [
+          data.logradouro,
+          data.complemento,
+          data.localidade,
+          data.uf,
+          cepLimpo.replace(/(\d{5})(\d{3})/, '$1-$2')
+        ].filter(Boolean).join(', ');
+        
+        setFormData(prev => ({
+          ...prev,
+          enderecoCompleto: enderecoCompleto,
+        }));
+      } else {
+        alert('CEP não encontrado');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      alert('Erro ao buscar CEP. Tente novamente.');
+    }
+  };
+
+  const formatCEP = (cep) => {
+    return cep
+      .replace(/\D/g, '')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .replace(/(-\d{3})\d+?$/, '$1');
+  };
+
+  const handleCEPChange = (e) => {
+    const { name, value } = e.target;
+    const cepLimpo = value.replace(/\D/g, '');
+    
+    // Limita a 8 dígitos
+    if (cepLimpo.length > 8) return;
+    
+    // Formata o CEP
+    const cepFormatado = formatCEP(cepLimpo);
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: cepFormatado,
+    }));
+    
+    // Se o CEP estiver completo (8 dígitos), busca o endereço
+    if (cepLimpo.length === 8) {
+      buscarEnderecoPorCEP(cepLimpo);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
     // Se for um campo de CPF, usa o formatador específico
     if (name === 'cpf' || name === 'cpfConjuge') {
       handleCPFChange(e);
+      return;
+    }
+    
+    // Se for o campo CEP, usa o formatador específico
+    if (name === 'cep') {
+      handleCEPChange(e);
       return;
     }
     
@@ -240,8 +302,8 @@ const Cadastrar = () => {
                   border: "1px solid #ced4da"
                 }}
                 placeholder="Digite o nome completo"
+                required
               />
-
             </div>
 
             <div className="form-group" style={{ marginBottom: "20px" }}>
@@ -258,16 +320,16 @@ const Cadastrar = () => {
                   border: "1px solid #ced4da"
                 }}
                 placeholder="000.000.000-00"
+                required
               />
-
             </div>
 
             <div className="form-group" style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Nome do Cônjuge</label>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>CEP *</label>
               <input
                 type="text"
-                name="nomeConjuge"
-                value={formData.nomeConjuge}
+                name="cep"
+                value={formData.cep}
                 onChange={handleChange}
                 style={{
                   width: "100%",
@@ -275,24 +337,8 @@ const Cadastrar = () => {
                   borderRadius: "4px",
                   border: "1px solid #ced4da"
                 }}
-                placeholder="Digite o nome do cônjuge"
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>CPF do Cônjuge</label>
-              <input
-                type="text"
-                name="cpfConjuge"
-                value={formData.cpfConjuge}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "4px",
-                  border: "1px solid #ced4da"
-                }}
-                placeholder="000.000.000-00"
+                placeholder="00000-000"
+                required
               />
             </div>
           </div>
@@ -341,42 +387,6 @@ const Cadastrar = () => {
                   </option>
                 ))}
               </select>
-
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Telefone *</label>
-              <input
-                type="tel"
-                name="telefone"
-                value={formData.telefone}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "4px",
-                  border: "1px solid #ced4da"
-                }}
-                placeholder="(00) 00000-0000"
-              />
-
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>E-mail *</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "4px",
-                  border: "1px solid #ced4da"
-                }}
-                placeholder="seu@email.com"
-              />
 
             </div>
           </div>
