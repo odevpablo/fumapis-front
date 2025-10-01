@@ -267,24 +267,23 @@ const Cadastrar = () => {
       
       if (!response.ok) {
         let errorMessage = 'Erro ao cadastrar cidadão';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorMessage;
+        // Já temos os dados da resposta em responseData
+        if (responseData) {
+          errorMessage = responseData.detail || errorMessage;
           
           // Tratar erros específicos da API
-          if (errorData.cpf) {
-            errorMessage = `CPF: ${errorData.cpf.join(' ')}`;
+          if (responseData.cpf) {
+            errorMessage = `CPF: ${Array.isArray(responseData.cpf) ? responseData.cpf.join(' ') : responseData.cpf}`;
           }
-          if (errorData.email) {
-            errorMessage = `E-mail: ${errorData.email.join(' ')}`;
+          if (responseData.email) {
+            errorMessage = `E-mail: ${Array.isArray(responseData.email) ? responseData.email.join(' ') : responseData.email}`;
           }
-        } catch {
-          // Handle error silently
         }
         throw new Error(errorMessage);
       }
       
-      const novoCidadao = await response.json();
+      // Usar os dados já obtidos da resposta
+      const novoCidadao = responseData;
       
       // Adicionar o novo cidadão ao contexto global (se necessário)
       if (adicionarEleitor) {
