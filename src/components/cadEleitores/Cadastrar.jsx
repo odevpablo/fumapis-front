@@ -7,6 +7,7 @@ const Cadastrar = () => {
     nomeCompleto: "",
     cpf: "",
     cep: "",
+    numero: "",
     zona: "",
     bairro: "",
     enderecoCompleto: "",
@@ -29,17 +30,24 @@ const Cadastrar = () => {
       const data = await response.json();
       
       if (!data.erro) {
+        // Pega o número atual do formulário
+        const numeroAtual = formData.numero ? `Nº ${formData.numero}` : '';
+        
+        // Monta o endereço com o número se existir
         const enderecoCompleto = [
           data.logradouro,
+          numeroAtual,
           data.complemento,
           data.localidade,
-          data.uf,
-          cepLimpo.replace(/(\d{5})(\d{3})/, '$1-$2')
+          data.uf
         ].filter(Boolean).join(', ');
         
+        // Atualiza o estado mantendo o número atual
         setFormData(prev => ({
           ...prev,
           enderecoCompleto: enderecoCompleto,
+          // Mantém o número no estado do formulário
+          numero: prev.numero
         }));
       } else {
         alert('CEP não encontrado');
@@ -80,10 +88,10 @@ const Cadastrar = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Campo alterado: ${name}, Valor: ${value}`);
     
     // Se for um campo de CPF, usa o formatador específico
     if (name === 'cpf' || name === 'cpfConjuge') {
-      handleCPFChange(e);
       return;
     }
     
@@ -93,12 +101,45 @@ const Cadastrar = () => {
       return;
     }
     
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    // Atualiza o estado normalmente
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: value
+      };
+      
+      // Se for o campo de número e já tiver um endereço, atualiza o endereço completo
+      if (name === 'numero' && prev.enderecoCompleto) {
+        // Separa o endereço em partes
+        const enderecoParts = prev.enderecoCompleto.split(',');
+        
+        // Remove o número antigo se existir
+        if (enderecoParts[1] && enderecoParts[1].includes('Nº')) {
+          enderecoParts.splice(1, 1);
+        }
+        
+        // Adiciona o novo número se existir
+        if (value) {
+          enderecoParts.splice(1, 0, ` Nº ${value}`);
+        }
+        
+        // Remove vírgulas extras e espaços em branco
+        newData.enderecoCompleto = enderecoParts.join(',')
+          .replace(/,\s*,/g, ',')  // Remove vírgulas duplicadas
+          .replace(/^\s*,\s*|\s*,\s*$/g, '')  // Remove vírgulas no início ou fim
+          .trim();
+      }
+      
+      // Garante que o valor da zona seja atualizado corretamente
+      if (name === 'zona') {
+        newData.zona = value;
+      }
+      
+      return newData;
+    });
   };
 
+  // Função para formatar CPF
   const formatCPF = (cpf) => {
     return cpf
       .replace(/\D/g, '')
@@ -155,10 +196,13 @@ const Cadastrar = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // Log para depuração
+    console.log('Valor de formData.zona no início do handleSubmit:', formData.zona);
+    
     try {
       // Validação básica
-      if (!formData.nomeCompleto || !formData.cpf || !formData.bairro) {
-        throw new Error('Por favor, preencha os campos obrigatórios: Nome Completo, CPF e Bairro');
+      if (!formData.nomeCompleto || !formData.cpf) {
+        throw new Error('Por favor, preencha os campos obrigatórios: Nome Completo e CPF');
       }
       
       // Validação de CPF
@@ -189,6 +233,9 @@ const Cadastrar = () => {
         throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
       }
       
+      // Log para depuração
+      console.log('Valor de formData.zona:', formData.zona);
+      
       // Preparar os dados no formato esperado pela API
       const dadosParaEnviar = {
         nome_completo: formData.nomeCompleto,
@@ -196,14 +243,16 @@ const Cadastrar = () => {
         nome_conjuge: formData.nomeConjuge || null,
         cpf_conjuge: formData.cpfConjuge ? formData.cpfConjuge.replace(/\D/g, '') : null,
         zona: formData.zona || null,
-        bairro: formData.bairro,
+        bairro: formData.bairro || null,
         telefone: formData.telefone || null,
         email: formData.email || null,
         endereco_completo: formData.enderecoCompleto || null,
         programa_social: formData.programaSocial || null
       };
       
-      const response = await fetch('http://api.fumapis.org/cidadaos/', {
+      console.log('Enviando dados para a API:', dadosParaEnviar);
+      
+      const response = await fetch('https://api.fumapis.org/cidadaos/', {
         method: 'POST',
         headers: {
           'accept': 'application/json',
@@ -212,6 +261,9 @@ const Cadastrar = () => {
         },
         body: JSON.stringify(dadosParaEnviar)
       });
+      
+      const responseData = await response.json();
+      console.log('Resposta da API:', responseData);
       
       if (!response.ok) {
         let errorMessage = 'Erro ao cadastrar cidadão';
@@ -270,10 +322,6 @@ const Cadastrar = () => {
     "Sul", "Leste", "Norte", "Centro Oeste"
   ];
 
-  const bairros = [
-    "Centro", "Eldorado", "Piraporinha", "Taboão", "Serra", "Campanário",
-    "Inamar", "Santo Antônio", "Conceição", "Casa Grande", "Assunção"
-  ];
 
   const programasSociais = [
     "Bolsa Família", "BPC", "CadÚnico", "Nenhum", "Outros"
@@ -312,7 +360,14 @@ const Cadastrar = () => {
                 type="text"
                 name="cpf"
                 value={formData.cpf}
-                onChange={handleChange}
+                onChange={handleCPFChange}
+                onBlur={(e) => {
+                  // Valida o CPF ao sair do campo
+                  if (e.target.value && !validateCPF(e.target.value)) {
+                    alert('CPF inválido');
+                    e.target.focus();
+                  }
+                }}
                 style={{
                   width: "100%",
                   padding: "10px",
@@ -338,6 +393,42 @@ const Cadastrar = () => {
                   border: "1px solid #ced4da"
                 }}
                 placeholder="00000-000"
+                required
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Número *</label>
+              <input
+                type="text"
+                name="numero"
+                value={formData.numero}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="Número"
+                required
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Bairro *</label>
+              <input
+                type="text"
+                name="bairro"
+                value={formData.bairro}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  border: "1px solid #ced4da"
+                }}
+                placeholder="Digite o bairro"
                 required
               />
             </div>
@@ -367,26 +458,6 @@ const Cadastrar = () => {
                 ))}
               </select>
 
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Bairro *</label>
-              <select
-                name="bairro"
-                value={formData.bairro}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "4px",
-                  border: "1px solid #ced4da",
-                  backgroundColor: "white"
-                }}
-              >
-                <option value="">Selecione um bairro</option>
-                {bairros.map((bairro) => (
-                  <option key={bairro} value={bairro}>
-                    {bairro}
-                  </option>
-                ))}
-              </select>
 
             </div>
           </div>
@@ -451,7 +522,6 @@ const Cadastrar = () => {
                 cpf: "",
                 nomeConjuge: "",
                 cpfConjuge: "",
-                bairro: "",
                 telefone: "",
                 email: "",
                 enderecoCompleto: "",
