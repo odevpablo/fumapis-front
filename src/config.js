@@ -3,7 +3,7 @@ const config = {
   // Em produção, usa HTTP diretamente (sem HTTPS)
   // Em desenvolvimento, usa o proxy do Vite (/api)
   API_URL: import.meta.env.PROD 
-    ? 'http://api.fumapis.org'  // Mudei para HTTP
+    ? 'https://api.fumapis.org'  // Alterado para HTTPS
     : '/api',
   
   // Configurações de CORS para requisições

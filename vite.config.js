@@ -10,9 +10,9 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       '/api': {
-        target: 'http://api.fumapis.org',
+        target: 'https://api.fumapis.org',
         changeOrigin: true,
-        secure: false,  // Permite conexões HTTP
+        secure: true,  // Habilita conexões HTTPS
         rewrite: (path) => path.replace(/^\/api/, ''),
         configure: (proxy) => {
           proxy.on('error', (err) => {
