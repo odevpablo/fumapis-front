@@ -7,9 +7,7 @@ import { EleitoresContext } from '../../context/EleitoresContext';
 const Consultar = () => {
   const [filtros, setFiltros] = useState({
     cpf: "",
-    nome: "",
-    bairro: "",
-    jaVotou: ""
+    nome: ""
   });
   const [resultados, setResultados] = useState([]);
   const [carregando, setCarregando] = useState(false);
@@ -19,7 +17,17 @@ const Consultar = () => {
   const { atualizarEstatisticas } = useContext(EleitoresContext);
 
   const bairros = [
-    "Centro", "Vila Nova", "Jardim das Flores", "Alto da Serra", "Vale Verde"
+    "Eldorado",
+    "Inamar",
+    "Centro",
+    "Conceição",
+    "Serraria",
+    "Campanário",
+    "Taboão",
+    "Canhema",
+    "Casa Grande",
+    "Vila Nogueira",
+    "Piraporinha"
   ];
   
   const zonas = [
@@ -53,8 +61,8 @@ const Consultar = () => {
     try {
       setResultados([]);
       
-      if (!filtros.cpf.trim() && !filtros.nome.trim() && !filtros.bairro) {
-        throw new Error("Por favor, informe pelo menos um filtro para a busca (CPF, Nome ou Bairro)");
+      if (!filtros.cpf.trim() && !filtros.nome.trim()) {
+        throw new Error("Por favor, informe pelo menos um filtro para a busca (CPF ou Nome)");
       }
       
       const token = localStorage.getItem('token');
@@ -78,9 +86,6 @@ const Consultar = () => {
           throw new Error("CPF inválido. O CPF deve conter 11 dígitos.");
         }
         url = `${config.API_URL}/cidadaos/cpf/${cpfLimpo}`;
-      } else if (filtros.bairro) {
-        const bairroFormatado = encodeURIComponent(filtros.bairro);
-        url = `${config.API_URL}/cidadaos/bairro/${bairroFormatado}?limit=130`;
       }
       
       const response = await fetch(url, {
@@ -134,9 +139,7 @@ const Consultar = () => {
   const limparFiltros = () => {
     setFiltros({
       cpf: "",
-      nome: "",
-      bairro: "",
-      jaVotou: ""
+      nome: ""
     });
     setResultados([]);
     setEditando(null);
@@ -349,65 +352,6 @@ const Consultar = () => {
                 fontSize: 14
               }}
             />
-          </div>
-          
-          <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 8,
-              fontWeight: 500,
-              color: '#333'
-            }}>
-              Bairro
-            </label>
-            <select
-              name="bairro"
-              value={filtros.bairro}
-              onChange={handleChange}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #ddd',
-                borderRadius: 4,
-                fontSize: 14,
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="">Todos os bairros</option>
-              {bairros.map((bairro, index) => (
-                <option key={index} value={bairro}>
-                  {bairro}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label style={{
-              display: 'block',
-              marginBottom: 8,
-              fontWeight: 500,
-              color: '#333'
-            }}>
-              Já votou
-            </label>
-            <select
-              name="jaVotou"
-              value={filtros.jaVotou}
-              onChange={handleChange}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #ddd',
-                borderRadius: 4,
-                fontSize: 14,
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="">Todos</option>
-              <option value="Sim">Sim</option>
-              <option value="Não">Não</option>
-            </select>
           </div>
         </div>
         

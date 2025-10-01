@@ -88,8 +88,6 @@ const Cadastrar = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log(`Campo alterado: ${name}, Valor: ${value}`);
-    
     // Se for um campo de CPF, usa o formatador específico
     if (name === 'cpf' || name === 'cpfConjuge') {
       return;
@@ -196,9 +194,6 @@ const Cadastrar = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Log para depuração
-    console.log('Valor de formData.zona no início do handleSubmit:', formData.zona);
-    
     try {
       // Validação básica
       if (!formData.nomeCompleto || !formData.cpf) {
@@ -233,9 +228,6 @@ const Cadastrar = () => {
         throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
       }
       
-      // Log para depuração
-      console.log('Valor de formData.zona:', formData.zona);
-      
       // Preparar os dados no formato esperado pela API
       const dadosParaEnviar = {
         nome_completo: formData.nomeCompleto,
@@ -250,8 +242,6 @@ const Cadastrar = () => {
         programa_social: formData.programaSocial || null
       };
       
-      console.log('Enviando dados para a API:', dadosParaEnviar);
-      
       const response = await fetch('https://api.fumapis.org/cidadaos/', {
         method: 'POST',
         headers: {
@@ -263,7 +253,6 @@ const Cadastrar = () => {
       });
       
       const responseData = await response.json();
-      console.log('Resposta da API:', responseData);
       
       if (!response.ok) {
         let errorMessage = 'Erro ao cadastrar cidadão';
@@ -321,6 +310,19 @@ const Cadastrar = () => {
     "Sul", "Leste", "Norte", "Centro Oeste"
   ];
 
+  const bairros = [
+    "Eldorado",
+    "Inamar",
+    "Centro",
+    "Conceição",
+    "Serraria",
+    "Campanário",
+    "Taboão",
+    "Canhema",
+    "Casa Grande",
+    "Vila Nogueira",
+    "Piraporinha"
+  ];
 
   const programasSociais = [
     "Bolsa Família", "BPC", "CadÚnico", "Nenhum", "Outros"
@@ -416,8 +418,7 @@ const Cadastrar = () => {
 
             <div className="form-group" style={{ marginBottom: "20px" }}>
               <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Bairro *</label>
-              <input
-                type="text"
+              <select
                 name="bairro"
                 value={formData.bairro}
                 onChange={handleChange}
@@ -425,11 +426,18 @@ const Cadastrar = () => {
                   width: "100%",
                   padding: "10px",
                   borderRadius: "4px",
-                  border: "1px solid #ced4da"
+                  border: "1px solid #ced4da",
+                  backgroundColor: "white"
                 }}
-                placeholder="Digite o bairro"
                 required
-              />
+              >
+                <option value="">Selecione um bairro</option>
+                {bairros.map((bairro) => (
+                  <option key={bairro} value={bairro}>
+                    {bairro}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div>

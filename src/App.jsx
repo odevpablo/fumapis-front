@@ -9,7 +9,6 @@ import Home from "./components/Home";
 import Dashboard from "./components/dashboard/Dashboard";
 import Consultar from "./components/eleitores/Consultar";
 import Cadastrar from "./components/cadEleitores/Cadastrar";
-import Importar from "./components/upload/Importar";
 import AppLayout from "./components/AppLayout";
 import EleitoresProvider from "./context/EleitoresProvider";
 
@@ -31,7 +30,6 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/consultar" element={<Consultar />} />
             <Route path="/cadastrar" element={<Cadastrar />} />
-            <Route path="/importar" element={<Importar />} />
             
             {/* Redireciona a rota raiz para /home quando autenticado */}
             <Route path="/" element={<Navigate to="/home" replace />} />

@@ -57,12 +57,6 @@ const AppLayout = () => {
           >
             Cadastrar Eleitores
           </NavLink>
-          <NavLink 
-            to="/importar" 
-            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-          >
-            Importar
-          </NavLink>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
